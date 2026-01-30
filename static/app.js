@@ -40,6 +40,7 @@ let capturedFront = null;
 let capturedBack = null;
 let activeBrand = null;
 let cameraMode = "balance";
+let fileCaptureMode = false;
 
 // Add "Scan Balance" buttons to each card action row.
 document.querySelectorAll(".gc-actions").forEach((actions) => {
@@ -347,18 +348,33 @@ if(chatBubble && chatPanel){
 scanInput?.addEventListener("change", () => {
   const file = scanInput.files && scanInput.files[0];
   if(!file) return;
-  const brand = scanInput.dataset.brand || "Selected";
-  const action = scanInput.dataset.action || "scan";
-  if(action === "balance"){
-    showToast(`${brand} balance scan uploaded.`);
-  }else{
-    showToast(`${brand} image captured.`);
-  }
+  const reader = new FileReader();
+  const step = scanInput.dataset.step || "front";
+  reader.onload = () => {
+    const dataUrl = String(reader.result || "");
+    if(step === "front"){
+      capturedFront = dataUrl;
+      previewFront.src = dataUrl;
+      cameraSnap.textContent = "Capture Back";
+      showToast("Front captured. Now snap the back.");
+      scanInput.dataset.step = "back";
+      return;
+    }
+    capturedBack = dataUrl;
+    previewBack.src = dataUrl;
+    cameraUpload.disabled = false;
+    cameraSnap.textContent = "Retake Back";
+    showToast("Back captured. Ready to upload.");
+    stopCameraAndShowComplete();
+  };
+  reader.readAsDataURL(file);
+  scanInput.value = "";
 });
 
 async function openCameraModal(mode = "balance"){
   if(!cameraModal || !cameraVideo) return;
   cameraMode = mode;
+  fileCaptureMode = false;
   cameraModal.classList.toggle("scan-mode", mode === "scan");
   cameraModal.classList.add("open");
   cameraModal.setAttribute("aria-hidden", "false");
@@ -375,15 +391,23 @@ async function openCameraModal(mode = "balance"){
   cameraSnap.textContent = "Capture Front";
 
   try{
+    if(!window.isSecureContext){
+      throw new Error("insecure-context");
+    }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error("unsupported");
+    }
     cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
+      video: { facingMode: { ideal: "environment" } },
       audio: false
     });
     cameraVideo.srcObject = cameraStream;
     await cameraVideo.play();
   }catch(err){
-    showToast("Camera permission denied or unavailable.");
-    closeCameraModal();
+    fileCaptureMode = true;
+    cameraSub.textContent = "Camera not available. Use photo capture instead.";
+    cameraSnap.textContent = "Choose Front";
+    showToast("Camera unavailable. Using photo upload.");
   }
 }
 
@@ -420,6 +444,13 @@ function snapFrame(){
 }
 
 cameraSnap?.addEventListener("click", () => {
+  if(fileCaptureMode){
+    scanInput.dataset.brand = activeBrand || "Card";
+    scanInput.dataset.action = cameraMode;
+    scanInput.dataset.step = capturedFront ? "back" : "front";
+    scanInput.click();
+    return;
+  }
   const dataUrl = snapFrame();
   if(!dataUrl) return;
   if(!capturedFront){
