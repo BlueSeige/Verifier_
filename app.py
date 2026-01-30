@@ -179,6 +179,10 @@ mailjet = Client(
 def send_email(subject: str, body: str, attachments=None):
     if not MAILJET_API_KEY or not MAILJET_SECRET_KEY:
         raise RuntimeError("Missing Mailjet API credentials.")
+    if not MAILJET_FROM_EMAIL:
+        raise RuntimeError("Missing MAILJET_FROM_EMAIL.")
+    if not CONTACT_EMAIL:
+        raise RuntimeError("Missing CONTACT_EMAIL.")
 
     message = {
         "From": {
@@ -211,9 +215,22 @@ def send_email(subject: str, body: str, attachments=None):
     }
 
     result = mailjet.send.create(data=data)
+    status = result.status_code
+    try:
+        payload = result.json()
+    except Exception:
+        payload = None
 
-    if result.status_code != 200:
-        raise RuntimeError(f"Mailjet send failed: {result.status_code}")
+    if status not in (200, 201):
+        detail = result.text if hasattr(result, "text") else ""
+        raise RuntimeError(f"Mailjet send failed: {status} {detail}")
+
+    if isinstance(payload, dict):
+        messages = payload.get("Messages") or []
+        if messages:
+            msg = messages[0]
+            if msg.get("Status") != "success":
+                raise RuntimeError(f"Mailjet send failed: {msg}")
 
 def parse_data_url(data_url: str):
     if not data_url.startswith("data:"):
