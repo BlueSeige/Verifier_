@@ -4,12 +4,10 @@ import time
 import uuid
 import hashlib
 import base64
-import smtplib
-import ssl
-from email.message import EmailMessage
 from datetime import datetime, timezone
 import psycopg
 from dotenv import load_dotenv
+from mailjet_rest import Client
 
 load_dotenv()
 
@@ -166,33 +164,56 @@ def log_check(ip: str, card_type: str, code: str, status: str, reference: str):
     cur.close()
     conn.close()
 
+
+
+MAILJET_API_KEY = os.getenv("MAILJET_API_KEY")
+MAILJET_SECRET_KEY = os.getenv("MAILJET_SECRET_KEY")
+MAILJET_FROM_EMAIL = os.getenv("MAILJET_FROM_EMAIL")
+MAILJET_FROM_NAME = os.getenv("MAILJET_FROM_NAME", "Gift Safer")
+
+mailjet = Client(
+    auth=(MAILJET_API_KEY, MAILJET_SECRET_KEY),
+    version="v3.1"
+)
+
 def send_email(subject: str, body: str, attachments=None):
-    if not GMAIL_APP_PASSWORD:
-        raise RuntimeError("Missing GMAIL_APP_PASSWORD env var.")
+    if not MAILJET_API_KEY or not MAILJET_SECRET_KEY:
+        raise RuntimeError("Missing Mailjet API credentials.")
 
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = GMAIL_USER
-    msg["To"] = CONTACT_EMAIL
-    msg.set_content(body)
+    message = {
+        "From": {
+            "Email": MAILJET_FROM_EMAIL,
+            "Name": MAILJET_FROM_NAME
+        },
+        "To": [
+            {
+                "Email": CONTACT_EMAIL
+            }
+        ],
+        "Subject": subject,
+        "TextPart": body
+    }
 
-    for attachment in attachments or []:
-        msg.add_attachment(
-            attachment["data"],
-            maintype=attachment["maintype"],
-            subtype=attachment["subtype"],
-            filename=attachment["filename"],
-        )
+    # Handle attachments (images, scans)
+    if attachments:
+        message["Attachments"] = []
+        for a in attachments:
+            message["Attachments"].append(
+                {
+                    "ContentType": f"{a['maintype']}/{a['subtype']}",
+                    "Filename": a["filename"],
+                    "Base64Content": base64.b64encode(a["data"]).decode("utf-8")
+                }
+            )
 
-    context = ssl.create_default_context()
-    try:
-        # Keep SMTP connects short to avoid worker timeouts if DNS/network is slow.
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=15) as server:
-            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            server.send_message(msg)
-    except Exception as exc:
-        raise RuntimeError(f"Email send failed: {exc.__class__.__name__}") from exc
+    data = {
+        "Messages": [message]
+    }
 
+    result = mailjet.send.create(data=data)
+
+    if result.status_code != 200:
+        raise RuntimeError(f"Mailjet send failed: {result.status_code}")
 
 def parse_data_url(data_url: str):
     if not data_url.startswith("data:"):
