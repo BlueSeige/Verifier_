@@ -179,58 +179,53 @@ mailjet = Client(
 def send_email(subject: str, body: str, attachments=None):
     if not MAILJET_API_KEY or not MAILJET_SECRET_KEY:
         raise RuntimeError("Missing Mailjet API credentials.")
+
     if not MAILJET_FROM_EMAIL:
-        raise RuntimeError("Missing MAILJET_FROM_EMAIL.")
+        raise RuntimeError("MAILJET_FROM_EMAIL is not set.")
+
     if not CONTACT_EMAIL:
-        raise RuntimeError("Missing CONTACT_EMAIL.")
+        raise RuntimeError("CONTACT_EMAIL is not set.")
 
     message = {
-        "From": {
-            "Email": MAILJET_FROM_EMAIL,
-            "Name": MAILJET_FROM_NAME
-        },
-        "To": [
-            {
-                "Email": CONTACT_EMAIL
-            }
-        ],
+        "From": {"Email": MAILJET_FROM_EMAIL, "Name": MAILJET_FROM_NAME},
+        "To": [{"Email": CONTACT_EMAIL}],
         "Subject": subject,
-        "TextPart": body
+        "TextPart": body,
     }
 
-    # Handle attachments (images, scans)
     if attachments:
         message["Attachments"] = []
         for a in attachments:
+            # a["data"] must be raw bytes
+            b64 = base64.b64encode(a["data"]).decode("utf-8")
             message["Attachments"].append(
                 {
                     "ContentType": f"{a['maintype']}/{a['subtype']}",
                     "Filename": a["filename"],
-                    "Base64Content": base64.b64encode(a["data"]).decode("utf-8")
+                    "Base64Content": b64,
                 }
             )
 
-    data = {
-        "Messages": [message]
-    }
+    data = {"Messages": [message]}
 
     result = mailjet.send.create(data=data)
-    status = result.status_code
+
+    # Always inspect the JSON response for the real reason
     try:
         payload = result.json()
     except Exception:
-        payload = None
+        payload = {"raw": getattr(result, "text", None)}
 
-    if status not in (200, 201):
-        detail = result.text if hasattr(result, "text") else ""
-        raise RuntimeError(f"Mailjet send failed: {status} {detail}")
+    if result.status_code != 200:
+        raise RuntimeError(f"Mailjet HTTP {result.status_code}: {payload}")
 
-    if isinstance(payload, dict):
-        messages = payload.get("Messages") or []
-        if messages:
-            msg = messages[0]
-            if msg.get("Status") != "success":
-                raise RuntimeError(f"Mailjet send failed: {msg}")
+    # Even with 200, Mailjet can report per-message failure
+    msg0 = (payload.get("Messages") or [{}])[0]
+    if msg0.get("Status") != "success":
+        raise RuntimeError(f"Mailjet message failed: {msg0}")
+
+    return True
+
 
 def parse_data_url(data_url: str):
     if not data_url.startswith("data:"):
@@ -438,6 +433,9 @@ def api_check():
             "checked_at": now_iso(),
         }
     )
+
+
+
 
 
 if __name__ == "__main__":
