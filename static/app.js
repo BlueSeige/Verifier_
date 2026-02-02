@@ -391,21 +391,13 @@ async function openCameraModal(mode = "balance"){
   cameraSnap.textContent = "Capture Front";
 
   try{
-    if(!window.isSecureContext){
-      throw new Error("insecure-context");
-    }
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      throw new Error("unsupported");
-    }
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
-      audio: false
-    });
+    cameraStream = await startCameraStream();
     cameraVideo.srcObject = cameraStream;
     await cameraVideo.play();
   }catch(err){
     fileCaptureMode = true;
-    cameraSub.textContent = "Camera not available. Use photo capture instead.";
+    const msg = getCameraErrorMessage(err);
+    if(cameraSub) cameraSub.textContent = msg;
     cameraSnap.textContent = "Choose Front";
     showToast("Camera unavailable. Using photo upload.");
   }
@@ -430,6 +422,53 @@ function stopCameraAndShowComplete(){
   const cameraCard = cameraModal?.querySelector(".camera-card");
   cameraCard?.classList.add("camera-complete");
   if(cameraDone) cameraDone.textContent = "Capture complete.";
+}
+
+async function startCameraStream(){
+  if(!window.isSecureContext){
+    const err = new Error("insecure-context");
+    err.name = "InsecureContextError";
+    throw err;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    const err = new Error("unsupported");
+    err.name = "UnsupportedError";
+    throw err;
+  }
+
+  try{
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    });
+  }catch(err){
+    // Some devices reject facingMode constraints; try a generic stream.
+    const name = err?.name || "";
+    if(name === "OverconstrainedError" || name === "NotFoundError"){
+      return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    }
+    throw err;
+  }
+}
+
+function getCameraErrorMessage(err){
+  const name = err?.name || "";
+  if(name === "InsecureContextError"){
+    return "Camera needs a secure origin. Use http://localhost:5000 (not 0.0.0.0 or a LAN IP) or HTTPS.";
+  }
+  if(name === "NotAllowedError" || name === "SecurityError"){
+    return "Camera permission is blocked. Allow it in your browser site settings, then retry.";
+  }
+  if(name === "NotFoundError"){
+    return "No camera device found. Connect a camera or use photo upload instead.";
+  }
+  if(name === "NotReadableError"){
+    return "Camera is in use by another app. Close it and try again.";
+  }
+  if(name === "UnsupportedError"){
+    return "Camera access is not supported in this browser mode. Use Edge/Chrome normal mode.";
+  }
+  return "Camera not available. Use photo capture instead.";
 }
 
 function snapFrame(){
