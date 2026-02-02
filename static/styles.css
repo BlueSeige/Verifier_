@@ -27,6 +27,10 @@ body{
               linear-gradient(180deg, #ffffff 0%, #fff9df 45%, #fff2c2 100%);
   overflow-x: hidden;
 }
+img{
+  max-width: 100%;
+  height: auto;
+}
 
 .bg{
   position: absolute;
@@ -1130,6 +1134,7 @@ code{
   border-radius: 16px;
   background: var(--panel-2);
   padding: 12px;
+  overflow-x: auto;
 }
 .admin-row{
   display: grid;
@@ -1139,6 +1144,7 @@ code{
   border-bottom: 1px solid rgba(148,163,184,0.16);
   font-size: 13px;
   align-items: center;
+  min-width: 720px;
 }
 .admin-row:last-child{ border-bottom: none; }
 .admin-head{
@@ -1165,6 +1171,14 @@ code{
   .header{
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+  .brand{
+    margin-left: 0;
+    margin-top: 0;
+  }
+  .header-actions{
+    justify-self: start;
+    margin-top: 0;
   }
   .nav{
     justify-content: flex-start;
@@ -1202,11 +1216,33 @@ code{
 }
 
 @media (max-width: 640px){
+  .bg{
+    height: 460px;
+  }
   .container{
     padding: 28px 20px 64px;
   }
+  .header{
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .logo-wrap{
+    width: 40px;
+    height: 40px;
+  }
+  .logo-icon{
+    width: 24px;
+    height: 24px;
+  }
+  .hero{
+    gap: 28px;
+    margin-bottom: 48px;
+  }
   .cards-grid{
     grid-template-columns: 1fr;
+  }
+  .cards-section{
+    margin-top: 80px;
   }
   .section-head{
     flex-direction: column;
@@ -1214,5 +1250,47 @@ code{
   }
   .hero h2{
     font-size: 30px;
+  }
+  .floating-card,
+  .hero-panel{
+    max-width: 100%;
+  }
+  .result-head{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .recent-item{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .chat-bubble{
+    right: 12px;
+    bottom: 16px;
+  }
+  .chat-panel{
+    right: 12px;
+    bottom: 88px;
+    width: min(320px, 92vw);
+  }
+  .camera-modal{
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px){
+  .btn{
+    width: 100%;
+    justify-content: center;
+  }
+  .gc-actions{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fc-row{
+    flex-wrap: wrap;
+  }
+  .admin-row{
+    min-width: 640px;
   }
 }
