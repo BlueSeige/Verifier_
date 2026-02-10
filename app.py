@@ -17,7 +17,7 @@ app = Flask(__name__)
 # ---------------- PostgreSQL Config ----------------
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:joetel88@localhost:5432/Gift_card_verifier")
 MAILJET_FROM_EMAIL = os.getenv("MAILJET_FROM_EMAIL", "Support@giftsafer.com")
-MAILJET_FROM_NAME= os.getenv('MAILJET_FROM_NAME',' Gift Safer')
+MAILJET_FROM_NAME = os.getenv("MAILJET_FROM_NAME", "Gift Safer")
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "Support@giftsafer.com")
 
 #Simple in-memory rate limiter (per IP)
