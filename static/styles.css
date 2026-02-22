@@ -888,6 +888,7 @@ code{
   transform: translateY(8px);
   transition: opacity 0.2s ease, transform 0.2s ease;
   z-index: 999;
+  pointer-events: none;
 }
 .toast.show{
   opacity: 1;
@@ -1025,7 +1026,7 @@ code{
   align-items: flex-start;
   justify-content: center;
   padding: 24px;
-  z-index: 10;
+  z-index: 1100;
   overflow-y: auto;
 }
 .camera-modal.open{ display: flex; }
